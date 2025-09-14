@@ -1,0 +1,208 @@
+# AWS SageMaker Training and Deployment Configuration
+
+# Training Job Configuration
+training:
+  job_name_prefix: "multimodal-foundation-model"
+  
+  # Instance configuration
+  instance_type: "ml.p4d.24xlarge"  # 8x A100 GPUs
+  instance_count: 1
+  volume_size: 500  # GB
+  max_runtime_seconds: 86400  # 24 hours
+  
+  # Docker configuration
+  image_uri: "your-account.dkr.ecr.us-west-2.amazonaws.com/multimodal-training:latest"
+  
+  # Input data configuration
+  input_data:
+    training:
+      s3_uri: "s3://your-bucket/data/train/"
+      content_type: "application/json"
+      input_mode: "File"  # or "Pipe" for streaming
+    validation:
+      s3_uri: "s3://your-bucket/data/val/"
+      content_type: "application/json"
+      input_mode: "File"
+  
+  # Output configuration
+  output_path: "s3://your-bucket/models/"
+  
+  # Hyperparameters
+  hyperparameters:
+    model_name: "clip-lora"
+    batch_size: 32
+    learning_rate: 2e-5
+    num_epochs: 3
+    lora_r: 16
+    lora_alpha: 32
+    use_distributed: "true"
+    num_gpus: 8
+    mixed_precision: "bf16"
+  
+  # Environment variables
+  environment:
+    MLFLOW_TRACKING_URI: "https://your-mlflow-server.com"
+    WANDB_PROJECT: "multimodal-foundation-model"
+    CUDA_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+  
+  # Tags
+  tags:
+    Project: "multimodal-foundation-model"
+    Team: "ml-research"
+    Environment: "production"
+
+# Model Deployment Configuration
+deployment:
+  # Endpoint configuration
+  endpoint_name: "multimodal-model-endpoint"
+  model_name: "multimodal-foundation-model"
+  
+  # Instance configuration
+  instance_type: "ml.g4dn.2xlarge"  # Single GPU for inference
+  initial_instance_count: 1
+  max_instance_count: 10
+  
+  # Auto-scaling configuration
+  auto_scaling:
+    enabled: true
+    min_capacity: 1
+    max_capacity: 10
+    target_invocations_per_instance: 100
+    scale_in_cooldown: 300  # seconds
+    scale_out_cooldown: 60   # seconds
+  
+  # Model configuration
+  model_data_url: "s3://your-bucket/models/model.tar.gz"
+  image_uri: "your-account.dkr.ecr.us-west-2.amazonaws.com/multimodal-inference:latest"
+  
+  # Environment variables for inference
+  environment:
+    MODEL_NAME: "multimodal-foundation-model"
+    MAX_BATCH_SIZE: "16"
+    MAX_SEQUENCE_LENGTH: "512"
+    WORKERS: "4"
+  
+  # Data capture for monitoring
+  data_capture:
+    enabled: true
+    initial_sampling_percentage: 100
+    destination_s3_uri: "s3://your-bucket/datacapture/"
+
+# Batch Transform Configuration
+batch_transform:
+  job_name_prefix: "multimodal-batch-transform"
+  
+  # Instance configuration
+  instance_type: "ml.g4dn.xlarge"
+  instance_count: 2
+  max_concurrent_transforms: 10
+  max_payload_mb: 6
+  
+  # Input/Output configuration
+  input_path: "s3://your-bucket/batch-input/"
+  output_path: "s3://your-bucket/batch-output/"
+  
+  # Content types
+  content_type: "application/json"
+  accept: "application/json"
+
+# Multi-Model Endpoint (for A/B testing)
+multi_model:
+  endpoint_name: "multimodal-multi-model-endpoint"
+  instance_type: "ml.g4dn.4xlarge"
+  initial_instance_count: 1
+  
+  models:
+    - name: "clip-lora-v1"
+      model_data_url: "s3://your-bucket/models/clip-lora-v1/model.tar.gz"
+    - name: "clip-lora-v2" 
+      model_data_url: "s3://your-bucket/models/clip-lora-v2/model.tar.gz"
+    - name: "llava-7b"
+      model_data_url: "s3://your-bucket/models/llava-7b/model.tar.gz"
+
+# Processing Job Configuration (for data preprocessing)
+processing:
+  job_name_prefix: "multimodal-data-processing"
+  
+  # Instance configuration
+  instance_type: "ml.m5.4xlarge"
+  instance_count: 2
+  volume_size: 100
+  
+  # Docker configuration
+  image_uri: "your-account.dkr.ecr.us-west-2.amazonaws.com/multimodal-processing:latest"
+  
+  # Input/Output configuration
+  inputs:
+    - source: "s3://your-bucket/raw-data/"
+      destination: "/opt/ml/processing/input/"
+  
+  outputs:
+    - source: "/opt/ml/processing/output/"
+      destination: "s3://your-bucket/processed-data/"
+
+# Monitoring and Alerting
+monitoring:
+  # CloudWatch alarms
+  alarms:
+    - name: "HighErrorRate"
+      metric: "ModelLatency"
+      threshold: 5000  # milliseconds
+      comparison: "GreaterThanThreshold"
+      evaluation_periods: 2
+      
+    - name: "LowAccuracy"
+      metric: "CustomMetric"
+      threshold: 0.8
+      comparison: "LessThanThreshold"
+      evaluation_periods: 1
+  
+  # Model monitoring
+  model_monitoring:
+    enabled: true
+    baseline_job_name: "multimodal-baseline"
+    monitoring_schedule_name: "multimodal-monitoring"
+    
+    # Data quality monitoring
+    data_quality:
+      statistics_s3_uri: "s3://your-bucket/monitoring/statistics/"
+      constraints_s3_uri: "s3://your-bucket/monitoring/constraints/"
+    
+    # Model quality monitoring  
+    model_quality:
+      problem_type: "MulticlassClassification"
+      ground_truth_s3_uri: "s3://your-bucket/monitoring/ground-truth/"
+
+# Security Configuration
+security:
+  # IAM role for SageMaker
+  execution_role: "arn:aws:iam::your-account:role/SageMakerExecutionRole"
+  
+  # VPC configuration
+  vpc_config:
+    security_group_ids:
+      - "sg-12345678"
+    subnets:
+      - "subnet-12345678"
+      - "subnet-87654321"
+  
+  # Encryption
+  encryption:
+    kms_key_id: "arn:aws:kms:us-west-2:your-account:key/your-key-id"
+    
+  # Network isolation
+  enable_network_isolation: false
+  enable_inter_container_traffic_encryption: true
+
+# Cost Optimization
+cost_optimization:
+  # Spot instances for training
+  use_spot_instances: true
+  max_wait_time_seconds: 7200
+  max_runtime_seconds: 3600
+  
+  # Managed warm pools
+  warm_pool:
+    enabled: true
+    pool_size: 1
+    max_age_seconds: 3600

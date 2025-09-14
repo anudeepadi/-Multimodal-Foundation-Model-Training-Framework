@@ -1,0 +1,57 @@
+# HuggingFace Accelerate Configuration for Distributed Training
+compute_environment: LOCAL_MACHINE
+
+# Distributed training setup
+distributed_type: MULTI_GPU  # NO, MULTI_CPU, MULTI_GPU, MULTI_XPU, FSDP, DEEPSPEED, TPU
+num_processes: 4  # Total number of processes (GPUs)
+machine_rank: 0   # Rank of current machine
+num_machines: 1   # Total number of machines
+main_process_ip: localhost
+main_process_port: 29500
+
+# GPU configuration
+gpu_ids: all  # Use all available GPUs
+use_cpu: false
+mixed_precision: bf16  # no, fp16, bf16
+
+# FSDP Configuration (when distributed_type: FSDP)
+fsdp_config:
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD
+  fsdp_state_dict_type: FULL_STATE_DICT
+  fsdp_sync_module_states: true
+  fsdp_transformer_layer_cls_to_wrap: null
+  fsdp_use_orig_params: true
+  fsdp_cpu_ram_efficient_loading: true
+
+# DeepSpeed Configuration (when distributed_type: DEEPSPEED)
+deepspeed_config_file: src/training/deepspeed_config.json
+zero_stage: 2
+offload_optimizer_device: none
+offload_param_device: none
+gradient_accumulation_steps: 1
+gradient_clipping: 1.0
+zero3_init_flag: true
+zero3_save_16bit_model: true
+
+# Training optimization
+dataloader_config:
+  split_batches: false
+  dispatch_batches: null
+  even_batches: true
+  use_seedable_sampler: true
+
+# Logging and debugging
+dynamo_backend: "no"  # eager, aot_eager, inductor, nvfuser, aot_nvfuser, aot_cudagraphs
+rdzv_backend: static
+same_network: true
+debug: false
+
+# Environment variables
+env_vars:
+  CUDA_VISIBLE_DEVICES: "0,1,2,3"
+  NCCL_DEBUG: "INFO"
+  TORCH_DISTRIBUTED_DEBUG: "INFO"

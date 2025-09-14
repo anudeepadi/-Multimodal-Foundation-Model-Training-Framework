@@ -1,0 +1,197 @@
+# Multimodal Foundation Model Training Configuration
+
+# Model Configuration
+model:
+  name: "openai/clip-vit-base-patch32"  # Base model identifier
+  architecture: "clip"  # clip, llava
+  
+  # LoRA Configuration
+  lora:
+    enabled: true
+    r: 16              # LoRA rank
+    alpha: 32          # LoRA alpha scaling parameter
+    dropout: 0.1       # LoRA dropout rate
+    target_modules:    # Modules to apply LoRA (null for auto-detection)
+      - "q_proj"
+      - "v_proj" 
+      - "k_proj"
+      - "out_proj"
+  
+  # Quantization Configuration
+  quantization:
+    enabled: false
+    method: "bnb"      # bnb, awq, gptq
+    bits: 4            # 4 or 8 bit quantization
+    double_quant: true # Use double quantization
+    quant_type: "nf4"  # nf4, fp4
+
+# Training Configuration
+training:
+  # Basic parameters
+  batch_size: 32
+  gradient_accumulation_steps: 1
+  learning_rate: 2e-5
+  weight_decay: 0.01
+  num_train_epochs: 10
+  max_steps: -1  # Override epochs if set
+  
+  # Learning rate scheduling
+  scheduler_type: "cosine"  # linear, cosine, polynomial
+  warmup_ratio: 0.1
+  
+  # Optimization
+  optimizer: "adamw"
+  beta1: 0.9
+  beta2: 0.95
+  eps: 1e-8
+  
+  # Regularization
+  gradient_clipping: 1.0
+  dropout: 0.1
+  
+  # Mixed precision
+  fp16: false
+  bf16: true
+  
+  # Memory optimization
+  gradient_checkpointing: true
+  dataloader_pin_memory: true
+  remove_unused_columns: false
+
+# Distributed Training Configuration
+distributed:
+  # Backend configuration
+  backend: "nccl"  # nccl, gloo, mpi
+  
+  # Multi-GPU strategies
+  strategy: "ddp"  # ddp, fsdp, deepspeed
+  
+  # FSDP Configuration
+  fsdp:
+    enabled: false
+    sharding_strategy: "FULL_SHARD"
+    transformer_layer_cls: null  # Auto-detect if null
+    min_num_params: 1e8
+    cpu_offload: false
+    mixed_precision: "bf16"
+  
+  # DeepSpeed Configuration
+  deepspeed:
+    enabled: false
+    config_file: "src/training/deepspeed_config.json"
+    zero_stage: 2
+    cpu_offload: false
+    nvme_offload: false
+
+# Data Configuration
+data:
+  # Dataset settings
+  dataset_name: "coco"  # coco, llava, custom
+  data_dir: "./data"
+  
+  # Processing parameters
+  max_seq_length: 512
+  image_size: 224
+  
+  # Data loading
+  num_workers: 4
+  prefetch_factor: 2
+  persistent_workers: true
+  
+  # Augmentation
+  augmentation:
+    enabled: true
+    prob: 0.5
+    color_jitter: true
+    random_crop: true
+    horizontal_flip: true
+    
+  # Validation split
+  validation_split: 0.1
+  test_split: 0.1
+
+# Evaluation Configuration
+evaluation:
+  # Evaluation frequency
+  eval_strategy: "steps"  # steps, epoch, no
+  eval_steps: 500
+  
+  # Metrics to compute
+  metrics:
+    - "bleu"
+    - "cider" 
+    - "clip_score"
+    - "retrieval"
+  
+  # Evaluation parameters
+  max_eval_samples: 1000
+  generate_max_length: 128
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 3
+    metric: "eval_loss"
+    mode: "min"
+
+# Logging and Checkpointing
+logging:
+  # Experiment tracking
+  use_mlflow: true
+  use_wandb: false
+  experiment_name: "multimodal-foundation-model"
+  run_name: null  # Auto-generate if null
+  
+  # Logging frequency
+  logging_steps: 100
+  log_level: "INFO"
+  
+  # What to log
+  log_model: true
+  log_predictions: false
+  log_system_info: true
+  
+# Checkpointing
+checkpointing:
+  output_dir: "./outputs"
+  save_strategy: "steps"  # steps, epoch, no
+  save_steps: 1000
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Resume training
+  resume_from_checkpoint: null
+
+# Environment Configuration
+environment:
+  # Reproducibility
+  seed: 42
+  deterministic: false
+  
+  # System optimization
+  torch_compile: false
+  channels_last: false
+  
+  # CPU settings
+  num_cpu_threads_per_process: 1
+  
+  # Memory management
+  max_memory_per_gpu: null
+  offload_folder: null
+
+# Cloud Configuration (for reference)
+cloud:
+  # AWS SageMaker
+  sagemaker:
+    instance_type: "ml.p4d.24xlarge"
+    instance_count: 1
+    volume_size: 500
+    max_runtime_seconds: 86400
+    
+  # Google Cloud Vertex AI
+  vertex_ai:
+    machine_type: "a2-highgpu-8g"
+    accelerator_type: "NVIDIA_TESLA_A100"
+    accelerator_count: 8

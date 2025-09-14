@@ -1,0 +1,61 @@
+# Core ML Libraries
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.36.0
+peft>=0.7.0
+accelerate>=0.25.0
+deepspeed>=0.12.0
+bitsandbytes>=0.41.0
+
+# Vision-Language Models
+open_clip_torch>=2.24.0
+datasets>=2.15.0
+Pillow>=10.1.0
+opencv-python>=4.8.0
+
+# Quantization
+auto-gptq>=0.5.0
+optimum>=1.16.0
+
+# MLOps & Monitoring
+mlflow>=2.8.0
+wandb>=0.16.0
+apache-airflow>=2.8.0
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.1.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+seaborn>=0.13.0
+
+# Evaluation Metrics
+nltk>=3.8.0
+rouge-score>=0.1.2
+sacrebleu>=2.3.0
+
+# Cloud & Containerization
+sagemaker>=2.199.0
+google-cloud-aiplatform>=1.38.0
+boto3>=1.34.0
+
+# Utilities
+tqdm>=4.66.0
+loguru>=0.7.0
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+tensorboard>=2.15.0
+jupyter>=1.0.0
+
+# Development
+pytest>=7.4.0
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.7.0
+
+# Neural Data Processing (Optional)
+mne>=1.5.0
+nibabel>=5.1.0
+nilearn>=0.10.0

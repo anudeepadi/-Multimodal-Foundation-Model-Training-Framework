@@ -1,0 +1,10 @@
+# Minimal requirements for inference deployment
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.36.0
+peft>=0.7.0
+Pillow>=10.1.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+numpy>=1.24.0
+opencv-python-headless>=4.8.0

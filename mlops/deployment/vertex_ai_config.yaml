@@ -1,0 +1,274 @@
+# Google Cloud Vertex AI Training and Deployment Configuration
+
+# Project Configuration
+project:
+  project_id: "your-project-id"
+  region: "us-central1"
+  staging_bucket: "gs://your-staging-bucket"
+
+# Custom Training Job Configuration
+training:
+  display_name: "multimodal-foundation-model-training"
+  
+  # Container specification
+  container:
+    image_uri: "gcr.io/your-project-id/multimodal-training:latest"
+    command: ["python", "scripts/train_distributed.py"]
+    args: ["--config", "/config/training_config.yaml"]
+  
+  # Machine specification
+  machine_spec:
+    machine_type: "a2-highgpu-8g"  # 8x A100 GPUs
+    accelerator_type: "NVIDIA_TESLA_A100"
+    accelerator_count: 8
+  
+  # Replica specification
+  replica_count: 1
+  
+  # Resource limits
+  resource_limits:
+    cpu: "96"
+    memory: "624Gi"
+    nvidia.com/gpu: "8"
+  
+  # Input data
+  input_data_config:
+    - input_path: "gs://your-bucket/data/train"
+      destination_path: "/data/train"
+    - input_path: "gs://your-bucket/data/val"
+      destination_path: "/data/val"
+  
+  # Output data
+  base_output_directory:
+    output_uri_prefix: "gs://your-bucket/training-outputs"
+  
+  # Environment variables
+  environment:
+    MLFLOW_TRACKING_URI: "https://your-mlflow-server.com"
+    WANDB_PROJECT: "multimodal-foundation-model"
+    CUDA_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+    NCCL_DEBUG: "INFO"
+  
+  # Service account
+  service_account: "training-sa@your-project-id.iam.gserviceaccount.com"
+  
+  # Timeout
+  timeout: "86400s"  # 24 hours
+
+# Hyperparameter Tuning Configuration
+hyperparameter_tuning:
+  display_name: "multimodal-hpt-job"
+  
+  # Hyperparameter search space
+  parameter_specs:
+    - parameter_id: "learning_rate"
+      scale_type: "UNIT_LOG_SCALE"
+      double_value_spec:
+        min_value: 1e-6
+        max_value: 1e-3
+    
+    - parameter_id: "batch_size"
+      scale_type: "UNIT_LINEAR_SCALE"
+      discrete_value_spec:
+        values: [16, 32, 64]
+    
+    - parameter_id: "lora_r"
+      scale_type: "UNIT_LINEAR_SCALE"
+      discrete_value_spec:
+        values: [8, 16, 32, 64]
+  
+  # Metric specification
+  metric_spec:
+    metric_id: "eval_loss"
+    goal: "MINIMIZE"
+  
+  # Search algorithm
+  algorithm: "RANDOM_SEARCH"
+  
+  # Parallel trial count
+  parallel_trial_count: 4
+  max_trial_count: 20
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+
+# Model Deployment Configuration
+deployment:
+  # Endpoint configuration
+  endpoint:
+    display_name: "multimodal-model-endpoint"
+    
+    # Deployed model
+    deployed_model:
+      display_name: "multimodal-foundation-model"
+      
+      # Container specification
+      container:
+        image_uri: "gcr.io/your-project-id/multimodal-inference:latest"
+        command: ["python", "inference.py"]
+        args: ["--port", "8080"]
+        
+        # Health and prediction routes
+        health_route: "/health"
+        predict_route: "/predict"
+        
+        # Resource requirements
+        resources:
+          limits:
+            cpu: "8"
+            memory: "32Gi"
+            nvidia.com/gpu: "1"
+        
+        # Environment variables
+        env:
+          - name: "MODEL_PATH"
+            value: "/models"
+          - name: "MAX_BATCH_SIZE"
+            value: "16"
+      
+      # Machine specification
+      machine_spec:
+        machine_type: "g2-standard-8"
+        accelerator_type: "NVIDIA_TESLA_T4"
+        accelerator_count: 1
+      
+      # Auto-scaling
+      min_replica_count: 1
+      max_replica_count: 10
+      
+      # Traffic allocation
+      traffic_percentage: 100
+
+# Batch Prediction Configuration  
+batch_prediction:
+  display_name: "multimodal-batch-prediction"
+  
+  # Model reference
+  model: "projects/your-project-id/locations/us-central1/models/multimodal-model"
+  
+  # Input configuration
+  input_config:
+    instances_format: "jsonl"
+    gcs_source:
+      uris: ["gs://your-bucket/batch-input/*.jsonl"]
+  
+  # Output configuration  
+  output_config:
+    predictions_format: "jsonl"
+    gcs_destination:
+      output_uri_prefix: "gs://your-bucket/batch-output"
+  
+  # Instance configuration
+  dedicated_resources:
+    machine_spec:
+      machine_type: "n1-standard-4"
+      accelerator_type: "NVIDIA_TESLA_T4"
+      accelerator_count: 1
+    starting_replica_count: 2
+    max_replica_count: 10
+
+# Model Registry Configuration
+model_registry:
+  display_name: "multimodal-foundation-model"
+  description: "Multimodal vision-language foundation model"
+  
+  # Model versions
+  versions:
+    - version_aliases: ["champion", "latest"]
+      description: "Production champion model"
+    - version_aliases: ["challenger"]  
+      description: "Candidate challenger model"
+  
+  # Labels
+  labels:
+    framework: "pytorch"
+    task: "multimodal"
+    team: "ml-research"
+
+# Pipeline Configuration (using Kubeflow Pipelines)
+pipeline:
+  display_name: "multimodal-training-pipeline"
+  
+  # Pipeline definition
+  template_uri: "gs://your-bucket/pipelines/multimodal_pipeline.yaml"
+  
+  # Pipeline parameters
+  parameters:
+    project_id:
+      string_value: "your-project-id"
+    region:
+      string_value: "us-central1"
+    data_path:
+      string_value: "gs://your-bucket/data"
+    model_name:
+      string_value: "clip-lora"
+  
+  # Service account
+  service_account: "pipeline-sa@your-project-id.iam.gserviceaccount.com"
+
+# Monitoring Configuration
+monitoring:
+  # Model monitoring
+  model_monitoring_job:
+    display_name: "multimodal-model-monitoring"
+    
+    # Monitoring objectives
+    model_monitoring_objectives:
+      - explanation_spec:
+          metadata:
+            inputs:
+              image: 
+                input_tensor_name: "pixel_values"
+              text:
+                input_tensor_name: "input_ids"
+          parameters:
+            top_k: 10
+    
+    # Alert configuration
+    model_monitoring_alert_config:
+      email_alert_config:
+        user_emails: ["ml-team@your-company.com"]
+      
+      notification_channels: ["projects/your-project-id/notificationChannels/your-channel-id"]
+    
+    # Sampling strategy
+    sampling_strategy:
+      random_sample_config:
+        sample_rate: 0.1
+  
+  # Endpoint monitoring
+  endpoint_monitoring:
+    # Logging configuration
+    request_response_logging_config:
+      enabled: true
+      sampling_rate: 1.0
+
+# Security and Compliance
+security:
+  # Service accounts
+  training_service_account: "training-sa@your-project-id.iam.gserviceaccount.com"
+  serving_service_account: "serving-sa@your-project-id.iam.gserviceaccount.com"
+  
+  # VPC configuration
+  network: "projects/your-project-id/global/networks/your-vpc"
+  subnet: "projects/your-project-id/regions/us-central1/subnetworks/your-subnet"
+  
+  # Encryption
+  encryption_spec:
+    kms_key_name: "projects/your-project-id/locations/us-central1/keyRings/your-ring/cryptoKeys/your-key"
+
+# Cost Optimization
+cost_optimization:
+  # Spot instances for training
+  spot_instances: true
+  
+  # Preemptible instances for batch prediction
+  preemptible: true
+  
+  # Resource quotas
+  resource_quotas:
+    cpu: "1000"
+    memory: "4000Gi"
+    nvidia_tesla_a100: "32"
+    nvidia_tesla_t4: "100"

@@ -1,0 +1,33 @@
+# Dockerfile for Airflow with custom dependencies
+FROM apache/airflow:2.8.0-python3.9
+
+# Switch to root to install system dependencies
+USER root
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to airflow user
+USER airflow
+
+# Install Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Install additional Airflow providers
+RUN pip install --no-cache-dir \
+    apache-airflow-providers-postgres==5.7.1 \
+    apache-airflow-providers-redis==3.4.0 \
+    apache-airflow-providers-slack==7.3.0 \
+    apache-airflow-providers-http==4.6.0 \
+    apache-airflow-providers-docker==3.7.2
+
+# Copy custom modules
+COPY src/ /opt/airflow/src/
+COPY mlops/ /opt/airflow/mlops/
+
+# Set Python path
+ENV PYTHONPATH=/opt/airflow:$PYTHONPATH
